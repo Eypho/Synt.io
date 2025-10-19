@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fixed Formula Synth</title>
+<style>
+body {
+    margin: 0;
+    padding: 0;
+    background: #000;
+    overflow: hidden;
+    touch-action: none;
+    font-family: 'Courier New', monospace;
+}
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: -8px;
+    margin-top: -8px;
+    margin: -8px;
+}
+.slider {
+    width: 100%;
+    margin: 5px 0;
+    background: #111;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    border: 1px solid #0a0;
+}
+
+.slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #0f0;
+    cursor: pointer;
+    border: 1px solid #0a0;
+    box-shadow: 0 0 5px #0f0;
+}
+
+.slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #0f0;
+    cursor: pointer;
+    border: 1px solid #0a0;
+    box-shadow: 0 0 5px #0f0;
+}
+#toggle-panel {
+    background: #333;
+    color: #0f0;
+    border: 1px solid #0a0;
+    border-radius: 8px;
+    cursor: pointer;
+    width: 45px;
+    height: 45px;
+    margin: 8px;
+}
+.panel-collapsed .formula-group,
+.panel-collapsed .control-group,
+.panel-collapsed .buttons {
+    display: none;
+}
+
+#synth {
+    width: 100vw;
+    height: 100vh;
+    background: linear-gradient(45deg, #111, #222);
+    position: relative;
+}
+
+.touch-point {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    box-shadow: 0 0 20px currentColor;
+}
+
+
+#formula-panel {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.95);
+    padding: 15px;
+    border-radius: 15px;
+    color: #0f0;
+    border: 1px solid #333;
+    z-index: 1000;
+    width: 320px;
+}
+
+.formula-group {
+    margin: 15px 0;
+}
+
+.formula-label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: #0f0;
+    font-weight: bold;
+}
+
+.formula-input {
+    width: 95%;
+    height: 50px;
+    background: #111;
+    color: #0f0;
+    border: 1px solid #0a0;
+    border-radius: 8px;
+    padding: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    resize: vertical;
+}
+
+.formula-input:focus {
+    outline: none;
+    border-color: #0f0;
+    box-shadow: 0 0 10px #0f0;
+}
+
+.info-text {
+    font-size: 11px;
+    color: #888;
+    margin-top: 5px;
+    line-height: 1.3;
+}
+
+.buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+    margin-top: 10px;
+}
+
+.btn {
+    padding: 6px;
+    background: #222;
+    color: #0f0;
+    border: 1px solid #0a0;
+    border-radius: 5px;
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    cursor: pointer;
+}
+
+
+.btn:hover {
+    background: #333;
+}
+
+.control-group {
+    margin: 10px 0;
+}
+
+.control-label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 12px;
+    color: #0f0;
+}
+
+.slider {
+    width: 100%;
+    margin: 5px 0;
+}
+
+.value-display {
+    font-size: 11px;
+    color: #0f0;
+    margin-top: 5px;
+}
+#ultra-btn {
+    background-color: #212;
+    color: #8f0;
+    font-weight: bold;
+}
+#wave-type-select {
+    width: 30%;
+    background: #111;
+    color: #0f0;
+    border: 1px solid #0a0;
+    border-radius: 8px;
+    padding: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+}
+
+#wave-type-select:focus {
+    outline: none;
+    border-color: #0f0;
+    box-shadow: 0 0 10px #0f0;
+}
+
+#wave-type-select option {
+    background: #111;
+    color: #0f0;
+    padding: 8px;
+}
+#oscilloscope {
+    width: 100%;
+    height: 60px;
+    background: #111;
+    border: 1px solid #0a0;
+    border-radius: 8px;
+    display: block;
+    margin-bottom: 1px;
+}
+</style>
+</head>
+<body>
+
+<div id="synth"></div>
+
+<div id="formula-panel">
+    <div class="panel-header">
+           <canvas id="oscilloscope" width="200" height="60"></canvas>
+        <button id="toggle-panel">−</button>
+    </div>
+    
+    <div class="control-group">
+        <label class="control-label">Wave Type:</label>
+        <select id="wave-type-select">
+            <option value="multi">Multi</option>
+            <option value="sawtooth">Sawtooth</option>
+            <option value="triangle">Triangle</option>
+            <option value="sine">Sine</option>
+            <option value="square">Square</option>
+        </select>
+<div class="formula-group">
+    <label class="formula-label">FREQUENCY (X-axis):</label>
+    <textarea class="formula-input" id="x-formula" spellcheck="false">80 + x * 1000</textarea>
+    <div class="info-text">x(0-1), t(time), r(random), y</div>
+    <div class="value-display">Position: <span id="x-value">0.5</span> | Frequency: <span id="x-result-value">580</span> Hz</div>
+</div>
+    
+    <div class="formula-group">
+        <label class="formula-label">WAVE MORPH (Y-axis):</label>
+        <textarea class="formula-input" id="y-formula" spellcheck="false">y</textarea>
+        <div class="info-text">y(0-1), x, t, r, freq</div>
+ <div class="value-display" style="font-size: 10px;">
+    Result: <span id="y-value">0.5</span> | 
+    Wave: <span id="wave-type">sawtooth</span> | 
+    <span id="y-freq-value">Mod:880Hz Detune:50ct Filter:8200Hz</span>
+</div>
+
+    <div class="control-group">
+        <label class="control-label">Modulation Depth: <span id="depth-value">1.0</span></label>
+        <input type="range" id="mod-depth" class="slider" min="0" max="2" step="0.1" value="1.0">
+    </div>
+    
+    <div class="buttons">
+        <button class="btn" onclick="loadPreset('basic')">Basic</button>
+        <button class="btn" onclick="loadPreset('lama')">Lama</button>
+        <button class="btn" onclick="loadPreset('fm')">FM</button>
+        <button class="btn" onclick="loadPreset('lfo')">LFO</button>
+        <button class="btn" onclick="loadPreset('chaos')">Chaos</button>
+        <button class="btn" onclick="loadPreset('filter')">Filter</button>
+        <button class="btn" onclick="loadPreset('detune')">Detune</button>
+        <button class="btn" onclick="loadPreset('mad')">Mad</button>
+        <button class="btn" id="ultra-btn" onclick="loadPreset('ultra')">Ultra</button>
+        <button class="btn" onclick="loadPreset('extra')">Extra</button>
+    </div>
+</div>
+
+<script>
+class FixedFormulaSynth {
+    constructor() {
+        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        this.voices = new Map();
+        this.masterGain = this.audioCtx.createGain();
+        this.masterGain.gain.value = 0.2;
+        
+        // Добавляем AnalyserNode для осцилографа
+        this.analyser = this.audioCtx.createAnalyser();
+        this.analyser.fftSize = 2048;
+        this.analyser.smoothingTimeConstant = 0.8;
+        
+        this.masterGain.connect(this.analyser);
+        this.analyser.connect(this.audioCtx.destination);
+        
+        this.bufferLength = this.analyser.frequencyBinCount;
+        this.dataArray = new Uint8Array(this.bufferLength);
+        
+        this.startTime = this.audioCtx.currentTime;
+        this.modDepth = 1.0;
+        
+        this.xFormula = '55 + exp(x*10)';
+        this.yFormula = 'exp(y*10)*sin(y*2)';
+        
+        this.waveMode = 'multi';
+        this.selectedWaveType = 'sawtooth';
+        
+        this.setupOscilloscope();
+        this.setupEventListeners();
+        this.setupControls();
+    }
+
+    setupOscilloscope() {
+        this.canvas = document.getElementById('oscilloscope');
+        this.canvasCtx = this.canvas.getContext('2d');
+        this.animationId = null;
+        this.startOscilloscope();
+    }
+
+    drawRealTimeWaveform() {
+        const ctx = this.canvasCtx;
+        const width = this.canvas.width;
+        const height = this.canvas.height;
+        
+        this.analyser.getByteTimeDomainData(this.dataArray);
+        
+        ctx.clearRect(0, 0, width, height);
+        
+        // Рамка
+        ctx.strokeStyle = '#0a0';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(0, 0, width, height);
+        
+        // Сетка
+        ctx.strokeStyle = '#033';
+        ctx.setLineDash([2, 2]);
+        ctx.beginPath();
+        ctx.moveTo(0, height / 2);
+        ctx.lineTo(width, height / 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        // Осциллограмма
+        ctx.strokeStyle = '#0f0';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        
+        const sliceWidth = width / this.bufferLength;
+        let x = 0;
+        
+        for (let i = 0; i < this.bufferLength; i++) {
+            const v = this.dataArray[i] / 128.0;
+            const y = v * height / 2;
+            
+            if (i === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+            
+            x += sliceWidth;
+        }
+        
+        ctx.stroke();
+    }
+
+    startOscilloscope() {
+        const animate = () => {
+            this.drawRealTimeWaveform();
+            this.animationId = requestAnimationFrame(animate);
+        };
+        animate();
+    }
+
+    // Остальные методы остаются без изменений...
+    setupControls() {
+        const xInput = document.getElementById('x-formula');
+        const yInput = document.getElementById('y-formula');
+        const depthSlider = document.getElementById('mod-depth');
+        const depthValue = document.getElementById('depth-value');
+        
+        xInput.value = this.xFormula;
+        yInput.value = this.yFormula;
+        
+        xInput.addEventListener('input', (e) => {
+            this.xFormula = e.target.value;
+            if (this.testFormula(this.xFormula, 'x')) {
+                this.updateAllVoices();
+            }
+        });
+        
+        document.getElementById('wave-type-select').addEventListener('change', (e) => {
+            this.selectedWaveType = e.target.value;
+            this.waveMode = (e.target.value === 'multi') ? 'multi' : 'fixed';
+            
+            for (let voice of this.voices.values()) {
+                if (this.waveMode === 'fixed') {
+                    voice.oscillator.type = this.selectedWaveType;
+                } else {
+                    const effectiveMorph = this.applyFormulaToWaveMorph(voice.morphValue);
+                    voice.oscillator.type = effectiveMorph.waveType;
+                }
+            }
+            this.updateDisplayForCurrentVoice();
+        });
+        
+        yInput.addEventListener('input', (e) => {
+            this.yFormula = e.target.value;
+            if (this.testFormula(this.yFormula, 'y')) {
+                this.updateAllVoices();
+            }
+        });
+        
+        depthSlider.addEventListener('input', (e) => {
+            this.modDepth = parseFloat(e.target.value);
+            depthValue.textContent = this.modDepth.toFixed(1);
+            this.updateAllVoices();
+        });
+        
+        document.getElementById('toggle-panel').addEventListener('click', function() {
+            const panel = document.getElementById('formula-panel');
+            panel.classList.toggle('panel-collapsed');
+            this.textContent = panel.classList.contains('panel-collapsed') ? '+' : '−';
+        });
+        
+        this.testFormula(this.xFormula, 'x');
+        this.testFormula(this.yFormula, 'y');
+    }
+    
+    // ... остальные методы без изменений
+    testFormula(formula, type) {
+        try {
+            const testVars = { x: 0.5, y: 0.5, t: 1, r: 0.5, freq: 440 };
+            const result = this.evaluateFormula(formula, testVars);
+            
+            if (typeof result !== 'number' || !isFinite(result)) {
+                throw new Error('Must return a number');
+            }
+            return true;
+        } catch (error) {
+            console.error(`ERROR in ${type.toUpperCase()}: ${error.message}`);
+            return false;
+        }
+    }
+    
+    evaluateFormula(formula, variables) {
+        const { x, y, t, r, freq } = variables;
+        
+        const safeEval = new Function(
+            'x', 'y', 't', 'r', 'freq',
+            'sin', 'cos', 'tan', 'pow', 'sqrt', 'log', 'exp', 'abs', 
+            'floor', 'ceil', 'round', 'min', 'max', 'PI', 'E',
+            `"use strict"; return (${formula});`
+        );
+        
+        return safeEval(
+            x, y, t, r, freq,
+            Math.sin, Math.cos, Math.tan, Math.pow, Math.sqrt, Math.log, Math.exp, Math.abs,
+            Math.floor, Math.ceil, Math.round, Math.min, Math.max, Math.PI, Math.E
+        );
+    }
+    
+    setupEventListeners() {
+        const synth = document.getElementById('synth');
+        
+        synth.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            this.audioCtx.resume();
+            
+            const pointerId = 'pointer_' + e.pointerId;
+            this.startVoice(pointerId, e.clientX, e.clientY);
+            this.createTouchPoint(e.clientX, e.clientY, pointerId);
+        });
+        
+        synth.addEventListener('pointermove', (e) => {
+            if (e.buttons !== 0) {
+                e.preventDefault();
+                const pointerId = 'pointer_' + e.pointerId;
+                this.updateVoice(pointerId, e.clientX, e.clientY);
+                this.updateTouchPoint(e.clientX, e.clientY, pointerId);
+            }
+        });
+        
+        synth.addEventListener('pointerup', (e) => {
+            e.preventDefault();
+            const pointerId = 'pointer_' + e.pointerId;
+            this.stopVoice(pointerId);
+            this.removeTouchPoint(pointerId);
+        });
+        
+        synth.addEventListener('pointercancel', (e) => {
+            e.preventDefault();
+            const pointerId = 'pointer_' + e.pointerId;
+            this.stopVoice(pointerId);
+            this.removeTouchPoint(pointerId);
+        });
+    }
+    
+    applyFormulaToWaveMorph(morphValue) {
+        if (this.waveMode === 'fixed') {
+            return { waveType: this.selectedWaveType, effectiveValue: 0 };
+        }
+        
+        const effectiveValue = morphValue * this.modDepth;
+        
+        let waveType;
+        if (effectiveValue < 0.25) {
+            waveType = 'square';
+        } else if (effectiveValue < 0.50) {
+            waveType = 'triangle';
+        } else if (effectiveValue < 0.75) {
+            waveType = 'sine';
+        } else {
+            waveType = 'sawtooth';
+        }
+        
+        return { waveType, effectiveValue };
+    }
+    
+    startVoice(id, x, y) {
+        if (this.voices.has(id)) {
+            this.stopVoice(id);
+        }
+        
+        const normalizedX = x / window.innerWidth;
+        const normalizedY = 1 - (y / window.innerHeight);
+        
+        try {
+            const baseFreq = this.calculateXFormula(normalizedX, normalizedY);
+            const morphValue = this.calculateYFormula(normalizedY, normalizedX, baseFreq);
+            
+            const effectiveMorph = this.applyFormulaToWaveMorph(morphValue);
+            
+            const oscillator = this.audioCtx.createOscillator();
+            oscillator.type = (this.waveMode === 'fixed') ? this.selectedWaveType : effectiveMorph.waveType;
+            oscillator.frequency.value = baseFreq;
+            
+            const modulator = this.audioCtx.createOscillator();
+            modulator.type = 'sine';
+            modulator.frequency.value = baseFreq * (1 + morphValue * 0.5);
+            
+            const modGain = this.audioCtx.createGain();
+            modGain.gain.value = Math.max(0, morphValue * 0.5 * this.modDepth);
+            
+            const filter = this.audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 200 + Math.abs(morphValue) * 10000 * this.modDepth;
+            filter.Q.value = 1 + Math.abs(morphValue) * 15;
+            
+            const gainNode = this.audioCtx.createGain();
+            gainNode.gain.setValueAtTime(0, this.audioCtx.currentTime);
+            gainNode.gain.linearRampToValueAtTime(1, this.audioCtx.currentTime + 0.02);
+            
+            // Подключаем к analyser вместо прямого подключения к destination
+            oscillator.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(this.masterGain);
+            
+            modulator.connect(modGain);
+            modGain.connect(oscillator.detune);
+            
+            oscillator.start();
+            modulator.start();
+            
+            this.voices.set(id, {
+                oscillator: oscillator,
+                modulator: modulator,
+                modGain: modGain,
+                filter: filter,
+                gain: gainNode,
+                x: x,
+                y: y,
+                normalizedX: normalizedX,
+                normalizedY: normalizedY,
+                baseFreq: baseFreq,
+                morphValue: morphValue,
+                waveType: effectiveMorph.waveType
+            });
+            
+            this.updateDisplayForCurrentVoice();
+            
+        } catch (error) {
+            console.error(`Voice Error: ${error.message}`);
+        }
+    }
+    
+    // ... остальные методы без изменений
+    calculateXFormula(normalizedX, normalizedY) {
+        const t = (this.audioCtx.currentTime - this.startTime);
+        const r = Math.random();
+        
+        return this.evaluateFormula(this.xFormula, {
+            x: normalizedX,
+            y: normalizedY,
+            t: t,
+            r: r,
+            freq: 440
+        });
+    }
+    
+    calculateYFormula(normalizedY, normalizedX, currentFreq) {
+        const t = (this.audioCtx.currentTime - this.startTime);
+        const r = Math.random();
+        
+        return this.evaluateFormula(this.yFormula, {
+            y: normalizedY,
+            x: normalizedX,
+            t: t,
+            r: r,
+            freq: currentFreq
+        });
+    }
+    
+    updateVoice(id, x, y) {
+        const voice = this.voices.get(id);
+        if (!voice) return;
+        
+        const normalizedX = x / window.innerWidth;
+        const normalizedY = 1 - (y / window.innerHeight);
+        
+        try {
+            const baseFreq = this.calculateXFormula(normalizedX, normalizedY);
+            const morphValue = this.calculateYFormula(normalizedY, normalizedX, baseFreq);
+            
+            const effectiveMorph = this.applyFormulaToWaveMorph(morphValue);
+            
+            if (this.waveMode === 'fixed') {
+                voice.oscillator.type = this.selectedWaveType;
+            } else {
+                if (voice.oscillator.type !== effectiveMorph.waveType) {
+                    voice.oscillator.type = effectiveMorph.waveType;
+                }
+            }
+            
+            voice.oscillator.frequency.setTargetAtTime(baseFreq, this.audioCtx.currentTime, 0.02);
+            
+            voice.modulator.frequency.setTargetAtTime(
+                baseFreq * (1 + morphValue * 0.5), 
+                this.audioCtx.currentTime, 
+                0.02
+            );
+            
+            voice.modGain.gain.setTargetAtTime(
+                Math.max(0, morphValue * 0.5 * this.modDepth), 
+                this.audioCtx.currentTime, 
+                0.02
+            );
+            
+            voice.filter.frequency.setTargetAtTime(
+                200 + Math.abs(morphValue) * 10000 * this.modDepth, 
+                this.audioCtx.currentTime, 
+                0.02
+            );
+            
+            voice.x = x;
+            voice.y = y;
+            voice.normalizedX = normalizedX;
+            voice.normalizedY = normalizedY;
+            voice.baseFreq = baseFreq;
+            voice.morphValue = morphValue;
+            voice.waveType = effectiveMorph.waveType;
+            
+            this.updateDisplayForCurrentVoice();
+            
+        } catch (error) {
+            console.error(`Update Error: ${error.message}`);
+        }
+    }
+    
+    updateDisplayForCurrentVoice() {
+        const firstVoice = this.voices.values().next().value;
+        if (firstVoice) {
+            document.getElementById('x-value').textContent = firstVoice.normalizedX.toFixed(2);
+            document.getElementById('x-result-value').textContent = Math.round(firstVoice.baseFreq);
+            document.getElementById('y-value').textContent = firstVoice.morphValue.toFixed(2);
+            document.getElementById('wave-type').textContent = firstVoice.oscillator.type;
+            
+            const fmDepthOctaves = Math.abs(firstVoice.morphValue) * 2;
+            const detuneSemitones = (firstVoice.morphValue - 0.5) * 4;
+            const filterCutoff = 80 + firstVoice.morphValue * 8000;
+            
+            let filterDescription;
+            if (filterCutoff < 500) filterDescription = "Very Dark";
+            else if (filterCutoff < 2000) filterDescription = "Warm"; 
+            else if (filterCutoff < 5000) filterDescription = "Bright";
+            else filterDescription = "Very Bright";
+            
+            document.getElementById('y-freq-value').textContent = 
+                `FM:±${fmDepthOctaves.toFixed(1)}oct | Detune:${detuneSemitones.toFixed(1)}st | Filter:${filterDescription}`;
+        }
+    }
+    
+    updateAllVoices() {
+        for (let [id, voice] of this.voices) {
+            this.updateVoice(id, voice.x, voice.y);
+        }
+    }
+    
+    stopVoice(id) {
+        const voice = this.voices.get(id);
+        if (!voice) return;
+        
+        try {
+            voice.gain.gain.cancelScheduledValues(this.audioCtx.currentTime);
+            voice.gain.gain.setValueAtTime(voice.gain.gain.value, this.audioCtx.currentTime);
+            voice.gain.gain.linearRampToValueAtTime(0, this.audioCtx.currentTime + 0.1);
+            
+            setTimeout(() => {
+                voice.oscillator.stop(this.audioCtx.currentTime + 0.15);
+                voice.modulator.stop(this.audioCtx.currentTime + 0.15);
+                
+                setTimeout(() => {
+                    if (this.voices.has(id)) {
+                        voice.oscillator.disconnect();
+                        voice.modulator.disconnect();
+                        voice.modGain.disconnect();
+                        voice.filter.disconnect();
+                        voice.gain.disconnect();
+                        this.voices.delete(id);
+                    }
+                }, 200);
+            }, 100);
+        } catch (e) {
+            this.voices.delete(id);
+        }
+    }
+    
+    createTouchPoint(x, y, id) {
+        const point = document.createElement('div');
+        point.className = 'touch-point';
+        point.id = id;
+        point.style.left = x + 'px';
+        point.style.top = y + 'px';
+        
+        const hue = (x / window.innerWidth) * 360;
+        const saturation = 30 + (y / window.innerHeight) * 70;
+        point.style.backgroundColor = `hsla(${hue}, ${saturation}%, 60%, 0.7)`;
+        point.style.color = `hsl(${hue}, 100%, 70%)`;
+        
+        document.getElementById('synth').appendChild(point);
+    }
+    
+    updateTouchPoint(x, y, id) {
+        const point = document.getElementById(id);
+        if (point) {
+            point.style.left = x + 'px';
+            point.style.top = y + 'px';
+            
+            const hue = (x / window.innerWidth) * 360;
+            const saturation = 30 + (y / window.innerHeight) * 70;
+            point.style.backgroundColor = `hsla(${hue}, ${saturation}%, 60%, 0.7)`;
+        }
+    }
+    
+    removeTouchPoint(id) {
+        const point = document.getElementById(id);
+        if (point && point.parentNode) {
+            point.parentNode.removeChild(point);
+        }
+    }
+}
+
+// Пресеты и loadPreset функция остаются такими же
+const presets = {
+    basic: { x: '80 + x * 1000', y: 'y' },
+    lama: { x: '8+8*exp(x*8)', y: 'y+y*exp(y*4)*(y*8)*(freq/4000)' },
+    fm: { x: '80 + x * 800', y: 'sin(t * y * 8) * 2' },
+    lfo: { x: '150 + sin(x * 4) * 100 + x * 600', y: 'sin(t * 4 + x * 8)' },
+    chaos: { x: '200 + x * 600', y: 'r * 2 - 1' },
+    filter: { x: '80 + x * 1200', y: 'y * y * 3 - 1.5' },
+    detune: { x: '100 + x * 600', y: '(y - 0.5) * 4' },
+    mad: { x: '50+exp(x*9)', y: 'y+y*exp(y*+4)*(sin(t*20)*7*y)' },
+  ultra: { x: '8+8*exp(x*8)', y: 'y+y*exp(y*8)*y' },
+  extra: { x: '10*(x*555)', y: 'log(y)' },
+};
+
+function loadPreset(presetName) {
+    const preset = presets[presetName];
+    if (preset) {
+        document.getElementById('x-formula').value = preset.x;
+        document.getElementById('y-formula').value = preset.y;
+        document.getElementById('x-formula').dispatchEvent(new Event('input'));
+        document.getElementById('y-formula').dispatchEvent(new Event('input'));
+    }
+}
+
+let synth;
+window.addEventListener('load', () => {
+    synth = new FixedFormulaSynth();
+});
+</script>
+</body>
+</html 
