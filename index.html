@@ -460,8 +460,15 @@ class FixedFormulaSynth {
     }
     
     setupEventListeners() {
-        const synth = document.getElementById('synth');
-        
+	    const synth = document.getElementById('synth');
+        // Хитрый шаг: блокируем попытки браузера превратить спам-клик в выделение или жест
+    synth.addEventListener('dblclick', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+    }, { passive: false });
+
+    // Защита от drag-and-drop при микро-смещениях мыши
+    synth.addEventListener('dragstart', (e) => e.preventDefault());
         synth.addEventListener('pointerdown', (e) => {
             e.preventDefault();
             this.audioCtx.resume();
@@ -517,71 +524,91 @@ class FixedFormulaSynth {
     }
     
     startVoice(id, x, y) {
-        if (this.voices.has(id)) {
-            this.stopVoice(id);
-        }
-        
-        const normalizedX = x / window.innerWidth;
-        const normalizedY = 1 - (y / window.innerHeight);
-        
-        try {
-            const baseFreq = this.calculateXFormula(normalizedX, normalizedY);
-            const morphValue = this.calculateYFormula(normalizedY, normalizedX, baseFreq);
-            
-            const effectiveMorph = this.applyFormulaToWaveMorph(morphValue);
-            
-            const oscillator = this.audioCtx.createOscillator();
-            oscillator.type = (this.waveMode === 'fixed') ? this.selectedWaveType : effectiveMorph.waveType;
-            oscillator.frequency.value = baseFreq;
-            
-            const modulator = this.audioCtx.createOscillator();
-            modulator.type = 'sine';
-            modulator.frequency.value = baseFreq * (1 + morphValue * 0.5);
-            
-            const modGain = this.audioCtx.createGain();
-            modGain.gain.value = Math.max(0, morphValue * 0.5 * this.modDepth);
-            
-            const filter = this.audioCtx.createBiquadFilter();
-            filter.type = 'lowpass';
-            filter.frequency.value = 200 + Math.abs(morphValue) * 10000 * this.modDepth;
-            filter.Q.value = 1 + Math.abs(morphValue) * 15;
-            
-            const gainNode = this.audioCtx.createGain();
-            gainNode.gain.setValueAtTime(0, this.audioCtx.currentTime);
-            gainNode.gain.linearRampToValueAtTime(1, this.audioCtx.currentTime + 0.02);
-            
-            // Подключаем к analyser вместо прямого подключения к destination
-            oscillator.connect(filter);
-            filter.connect(gainNode);
-            gainNode.connect(this.masterGain);
-            
-            modulator.connect(modGain);
-            modGain.connect(oscillator.detune);
-            
-            oscillator.start();
-            modulator.start();
-            
-            this.voices.set(id, {
-                oscillator: oscillator,
-                modulator: modulator,
-                modGain: modGain,
-                filter: filter,
-                gain: gainNode,
-                x: x,
-                y: y,
-                normalizedX: normalizedX,
-                normalizedY: normalizedY,
-                baseFreq: baseFreq,
-                morphValue: morphValue,
-                waveType: effectiveMorph.waveType
-            });
-            
-            this.updateDisplayForCurrentVoice();
-            
-        } catch (error) {
-            console.error(`Voice Error: ${error.message}`);
-        }
+    // Если для этого id уже есть голос — мгновенно убиваем его узлы синхронно (без setTimeout-задержек)
+    if (this.voices.has(id)) {
+        this.forceKillVoice(id);
     }
+    
+    const normalizedX = x / window.innerWidth;
+    const normalizedY = 1 - (y / window.innerHeight);
+    
+    try {
+        const baseFreq = this.calculateXFormula(normalizedX, normalizedY);
+        const morphValue = this.calculateYFormula(normalizedY, normalizedX, baseFreq);
+        
+        const effectiveMorph = this.applyFormulaToWaveMorph(morphValue);
+        
+        const oscillator = this.audioCtx.createOscillator();
+        oscillator.type = (this.waveMode === 'fixed') ? this.selectedWaveType : effectiveMorph.waveType;
+        oscillator.frequency.value = baseFreq;
+        
+        const modulator = this.audioCtx.createOscillator();
+        modulator.type = 'sine';
+        modulator.frequency.value = baseFreq * (1 + morphValue * 0.5);
+        
+        const modGain = this.audioCtx.createGain();
+        modGain.gain.value = Math.max(0, morphValue * 0.5 * this.modDepth);
+        
+        const filter = this.audioCtx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 200 + Math.abs(morphValue) * 10000 * this.modDepth;
+        filter.Q.value = 1 + Math.abs(morphValue) * 15;
+        
+        const gainNode = this.audioCtx.createGain();
+        gainNode.gain.setValueAtTime(0, this.audioCtx.currentTime);
+        gainNode.gain.linearRampToValueAtTime(1, this.audioCtx.currentTime + 0.02);
+        
+        oscillator.connect(filter);
+        filter.connect(gainNode);
+        gainNode.connect(this.masterGain);
+        
+        modulator.connect(modGain);
+        modGain.connect(oscillator.detune);
+        
+        oscillator.start();
+        modulator.start();
+        
+        // Сохраняем id таймеров, чтобы можно было их отменить при forceKill
+        this.voices.set(id, {
+            oscillator, modulator, modGain, filter, gain: gainNode,
+            x, y, normalizedX, normalizedY, baseFreq, morphValue,
+            waveType: effectiveMorph.waveType,
+            stopTimeouts: []
+        });
+        
+        this.updateDisplayForCurrentVoice();
+        
+    } catch (error) {
+        console.error(`Voice Error: ${error.message}`);
+    }
+}
+
+// Новый метод: немедленное синхронное уничтожение голоса без fade-out, отменяя все висящие таймеры
+forceKillVoice(id) {
+    const voice = this.voices.get(id);
+    if (!voice) return;
+    
+    // Отменяем все запланированные setTimeout от предыдущего stopVoice
+    if (voice.stopTimeouts) {
+        voice.stopTimeouts.forEach(t => clearTimeout(t));
+    }
+    
+    try {
+        voice.gain.gain.cancelScheduledValues(this.audioCtx.currentTime);
+        voice.gain.gain.setValueAtTime(0, this.audioCtx.currentTime);
+        voice.oscillator.stop();
+        voice.modulator.stop();
+        voice.oscillator.disconnect();
+        voice.modulator.disconnect();
+        voice.modGain.disconnect();
+        voice.filter.disconnect();
+        voice.gain.disconnect();
+    } catch (e) {
+        // узел уже остановлен/отключен — игнорируем
+    }
+    
+    this.voices.delete(id);
+}
     
     // ... остальные методы без изменений
     calculateXFormula(normalizedX, normalizedY) {
@@ -695,34 +722,42 @@ class FixedFormulaSynth {
         }
     }
     
-    stopVoice(id) {
-        const voice = this.voices.get(id);
-        if (!voice) return;
+stopVoice(id) {
+    const voice = this.voices.get(id);
+    if (!voice) return;
+    
+    try {
+        voice.gain.gain.cancelScheduledValues(this.audioCtx.currentTime);
+        voice.gain.gain.setValueAtTime(voice.gain.gain.value, this.audioCtx.currentTime);
+        voice.gain.gain.linearRampToValueAtTime(0, this.audioCtx.currentTime + 0.1);
         
-        try {
-            voice.gain.gain.cancelScheduledValues(this.audioCtx.currentTime);
-            voice.gain.gain.setValueAtTime(voice.gain.gain.value, this.audioCtx.currentTime);
-            voice.gain.gain.linearRampToValueAtTime(0, this.audioCtx.currentTime + 0.1);
+        const t1 = setTimeout(() => {
+            // Проверяем, что это всё ещё тот же голос (не пересоздан)
+            if (this.voices.get(id) !== voice) return;
+            try {
+                voice.oscillator.stop(this.audioCtx.currentTime + 0.05);
+                voice.modulator.stop(this.audioCtx.currentTime + 0.05);
+            } catch (e) {}
             
-            setTimeout(() => {
-                voice.oscillator.stop(this.audioCtx.currentTime + 0.15);
-                voice.modulator.stop(this.audioCtx.currentTime + 0.15);
-                
-                setTimeout(() => {
-                    if (this.voices.has(id)) {
-                        voice.oscillator.disconnect();
-                        voice.modulator.disconnect();
-                        voice.modGain.disconnect();
-                        voice.filter.disconnect();
-                        voice.gain.disconnect();
-                        this.voices.delete(id);
-                    }
-                }, 200);
+            const t2 = setTimeout(() => {
+                if (this.voices.get(id) !== voice) return;
+                try {
+                    voice.oscillator.disconnect();
+                    voice.modulator.disconnect();
+                    voice.modGain.disconnect();
+                    voice.filter.disconnect();
+                    voice.gain.disconnect();
+                } catch (e) {}
+                this.voices.delete(id);
             }, 100);
-        } catch (e) {
-            this.voices.delete(id);
-        }
+            voice.stopTimeouts.push(t2);
+        }, 100);
+        voice.stopTimeouts.push(t1);
+        
+    } catch (e) {
+        this.voices.delete(id);
     }
+}
     
     createTouchPoint(x, y, id) {
         const point = document.createElement('div');
