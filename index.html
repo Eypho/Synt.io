@@ -772,7 +772,7 @@ const presets = {
     basic: { x: '80 + x * 1000', y: 'y' },
     lama: { x: '8+8*exp(x*8)', y: 'y+y*exp(y*4)*(y*8)*(freq/4000)' },
     fm: { x: '80 + x * 800', y: 'sin(t * y * 8) * 2' },
-    lfo: { x: '150 + sin(x * 4) * 100 + x * 600', y: 'sin(t * 4 + x * 8)' },
+    lfo: { x: '150 + sin(x * 4) * 100 + x * 600', y: 'sin(t * 4 + y * 8)' },
     chaos: { x: '200 + x * 600', y: 'r * 2 - 1' },
     filter: { x: '80 + x * 1200', y: 'y * y * 3 - 1.5' },
     detune: { x: '100 + x * 600', y: '(y - 0.5) * 4' },
