@@ -2,16 +2,17 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Fixed Formula Synth</title>
 <style>
-body {
+html, body {
     margin: 0;
     padding: 0;
     background: #000;
     overflow: hidden;
     touch-action: none;
     font-family: 'Courier New', monospace;
+    overscroll-behavior: none; 
 }
 .panel-header {
     display: flex;
@@ -41,7 +42,7 @@ body {
     border-radius: 50%;
     background: #0f0;
     cursor: pointer;
-    border: 1px solid #0a0;
+    /*border: 1px solid #0f0;*/
     box-shadow: 0 0 5px #0f0;
 }
 
@@ -66,7 +67,8 @@ body {
 }
 .panel-collapsed .formula-group,
 .panel-collapsed .control-group,
-.panel-collapsed .buttons {
+.panel-collapsed .buttons,
+.panel-collapsed #fullscreen-btn {
     display: none;
 }
 
@@ -87,11 +89,10 @@ body {
     box-shadow: 0 0 20px currentColor;
 }
 
-
 #formula-panel {
     position: fixed;
-    top: 10px;
-    left: 10px;
+    top: 2px;
+    left: 2px;
     background: rgba(0,0,0,0.95);
     padding: 15px;
     border-radius: 15px;
@@ -99,14 +100,17 @@ body {
     border: 1px solid #333;
     z-index: 1000;
     width: 320px;
+    max-height: 90vh;
+    overflow-y: auto;
 }
 
 .formula-group {
-    margin: 15px 0;
+    margin: 5px 0;
 }
 
 .formula-label {
     display: block;
+    margin-top: 0px;
     margin-bottom: 8px;
     font-size: 14px;
     color: #0f0;
@@ -135,8 +139,8 @@ body {
 .info-text {
     font-size: 11px;
     color: #888;
-    margin-top: 5px;
-    line-height: 1.3;
+    margin-top: 2px;
+    line-height: 0.3;
 }
 
 .buttons {
@@ -157,7 +161,6 @@ body {
     cursor: pointer;
 }
 
-
 .btn:hover {
     background: #333;
 }
@@ -168,14 +171,9 @@ body {
 
 .control-label {
     display: block;
-    margin-bottom: 5px;
+    margin-bottom: 0px;
     font-size: 12px;
     color: #0f0;
-}
-
-.slider {
-    width: 100%;
-    margin: 5px 0;
 }
 
 .value-display {
@@ -187,29 +185,40 @@ body {
     background-color: #212;
     color: #8f0;
     font-weight: bold;
+    transition:ease 0.84s;
 }
+#ultra-btn:hover{
+  background: #ff0;
+  color: #000;
+}
+
+#fullscreen-btn {
+    background: #333;
+    color: #0f0;
+    font-size: 16px;
+    border: 1px solid #0a0;
+    border-radius: 8px;
+    cursor: pointer;
+    width: 45px;
+    height: 45px;
+    margin: 0px;
+}
+#fullscreen-btn:hover {
+    background: #040;
+}
+
 #wave-type-select {
     width: 30%;
     background: #111;
     color: #0f0;
     border: 1px solid #0a0;
     border-radius: 8px;
-    padding: 8px;
+    padding: 4px;
     font-family: 'Courier New', monospace;
     font-size: 12px;
 }
 
-#wave-type-select:focus {
-    outline: none;
-    border-color: #0f0;
-    box-shadow: 0 0 10px #0f0;
-}
 
-#wave-type-select option {
-    background: #111;
-    color: #0f0;
-    padding: 8px;
-}
 #oscilloscope {
     width: 100%;
     height: 60px;
@@ -227,8 +236,9 @@ body {
 
 <div id="formula-panel">
     <div class="panel-header">
-           <canvas id="oscilloscope" width="200" height="60"></canvas>
+        <canvas id="oscilloscope" width="200" height="60"></canvas>
         <button id="toggle-panel">−</button>
+        <button class="btn" id="fullscreen-btn" onclick="toggleFullscreen()">[]</button>
     </div>
     
     <div class="control-group">
@@ -238,28 +248,31 @@ body {
             <option value="sawtooth">Sawtooth</option>
             <option value="triangle">Triangle</option>
             <option value="sine">Sine</option>
-            <option value="square">Square</option>
+            <option value="square" selected>Square</option>
         </select>
-<div class="formula-group">
-    <label class="formula-label">FREQUENCY (X-axis):</label>
-    <textarea class="formula-input" id="x-formula" spellcheck="false">80 + x * 1000</textarea>
-    <div class="info-text">x(0-1), t(time), r(random), y</div>
-    <div class="value-display">Position: <span id="x-value">0.5</span> | Frequency: <span id="x-result-value">580</span> Hz</div>
-</div>
+    </div>
+
+    <div class="formula-group">
+        <label class="formula-label">FREQUENCY (X-axis):</label>
+        <textarea class="formula-input" id="x-formula" spellcheck="false">80 + x * 1000</textarea>
+        <div class="info-text">x(0-1), t(time), r(random), y</div>
+        <div class="value-display">Position: <span id="x-value">0.5</span> | Frequency: <span id="x-result-value">580</span> Hz</div>
+    </div>
     
     <div class="formula-group">
         <label class="formula-label">WAVE MORPH (Y-axis):</label>
         <textarea class="formula-input" id="y-formula" spellcheck="false">y</textarea>
         <div class="info-text">y(0-1), x, t, r, freq</div>
- <div class="value-display" style="font-size: 10px;">
-    Result: <span id="y-value">0.5</span> | 
-    Wave: <span id="wave-type">sawtooth</span> | 
-    <span id="y-freq-value">Mod:880Hz Detune:50ct Filter:8200Hz</span>
-</div>
+        <div class="value-display" style="font-size: 10px;">
+            Result: <span id="y-value">0.5</span> | 
+            Wave: <span id="wave-type">sawtooth</span> | 
+            <span id="y-freq-value">Mod:880Hz Detune:50ct Filter:8200Hz</span>
+        </div>
+    </div>
 
     <div class="control-group">
-        <label class="control-label">Modulation Depth: <span id="depth-value">1.0</span></label>
-        <input type="range" id="mod-depth" class="slider" min="0" max="2" step="0.1" value="1.0">
+        <label class="control-label">Modulation Depth: <span id="depth-value">0.3</span></label>
+        <input type="range" id="mod-depth" class="slider" min="0" max="2" step="0.1" value="0.3">
     </div>
     
     <div class="buttons">
@@ -277,6 +290,26 @@ body {
 </div>
 
 <script>
+document.addEventListener('touchmove', function (event) {
+    if (event.scale !== 1) { event.preventDefault(); }
+}, { passive: false });
+
+document.addEventListener('gesturestart', function(e) {
+    e.preventDefault();
+});
+
+function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+            console.error(`Error entering fullscreen: ${err.message}`);
+        });
+        document.getElementById('fullscreen-btn').textContent = '[]';
+    } else {
+        document.exitFullscreen();
+        document.getElementById('fullscreen-btn').textContent = '[]';
+    }
+}
+
 class FixedFormulaSynth {
     constructor() {
         this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -284,7 +317,6 @@ class FixedFormulaSynth {
         this.masterGain = this.audioCtx.createGain();
         this.masterGain.gain.value = 0.2;
         
-        // Добавляем AnalyserNode для осцилографа
         this.analyser = this.audioCtx.createAnalyser();
         this.analyser.fftSize = 2048;
         this.analyser.smoothingTimeConstant = 0.8;
@@ -298,11 +330,11 @@ class FixedFormulaSynth {
         this.startTime = this.audioCtx.currentTime;
         this.modDepth = 1.0;
         
-        this.xFormula = '55 + exp(x*10)';
-        this.yFormula = 'exp(y*10)*sin(y*2)';
+        this.xFormula = '55 + exp(x*8)'; //start value x
+        this.yFormula = 'exp(y*2)*sin(y*2)'; //start value y
         
-        this.waveMode = 'multi';
-        this.selectedWaveType = 'sawtooth';
+        this.waveMode = 'fixed';
+        this.selectedWaveType = 'square';
         
         this.setupOscilloscope();
         this.setupEventListeners();
@@ -322,15 +354,12 @@ class FixedFormulaSynth {
         const height = this.canvas.height;
         
         this.analyser.getByteTimeDomainData(this.dataArray);
-        
         ctx.clearRect(0, 0, width, height);
         
-        // Рамка
         ctx.strokeStyle = '#0a0';
         ctx.lineWidth = 1;
         ctx.strokeRect(0, 0, width, height);
         
-        // Сетка
         ctx.strokeStyle = '#033';
         ctx.setLineDash([2, 2]);
         ctx.beginPath();
@@ -339,7 +368,6 @@ class FixedFormulaSynth {
         ctx.stroke();
         ctx.setLineDash([]);
         
-        // Осциллограмма
         ctx.strokeStyle = '#0f0';
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -356,10 +384,8 @@ class FixedFormulaSynth {
             } else {
                 ctx.lineTo(x, y);
             }
-            
             x += sliceWidth;
         }
-        
         ctx.stroke();
     }
 
@@ -371,7 +397,6 @@ class FixedFormulaSynth {
         animate();
     }
 
-    // Остальные методы остаются без изменений...
     setupControls() {
         const xInput = document.getElementById('x-formula');
         const yInput = document.getElementById('y-formula');
@@ -426,12 +451,10 @@ class FixedFormulaSynth {
         this.testFormula(this.yFormula, 'y');
     }
     
-    // ... остальные методы без изменений
     testFormula(formula, type) {
         try {
             const testVars = { x: 0.5, y: 0.5, t: 1, r: 0.5, freq: 440 };
             const result = this.evaluateFormula(formula, testVars);
-            
             if (typeof result !== 'number' || !isFinite(result)) {
                 throw new Error('Must return a number');
             }
@@ -444,14 +467,12 @@ class FixedFormulaSynth {
     
     evaluateFormula(formula, variables) {
         const { x, y, t, r, freq } = variables;
-        
         const safeEval = new Function(
             'x', 'y', 't', 'r', 'freq',
             'sin', 'cos', 'tan', 'pow', 'sqrt', 'log', 'exp', 'abs', 
             'floor', 'ceil', 'round', 'min', 'max', 'PI', 'E',
             `"use strict"; return (${formula});`
         );
-        
         return safeEval(
             x, y, t, r, freq,
             Math.sin, Math.cos, Math.tan, Math.pow, Math.sqrt, Math.log, Math.exp, Math.abs,
@@ -460,19 +481,18 @@ class FixedFormulaSynth {
     }
     
     setupEventListeners() {
-	    const synth = document.getElementById('synth');
-        // Хитрый шаг: блокируем попытки браузера превратить спам-клик в выделение или жест
-    synth.addEventListener('dblclick', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-    }, { passive: false });
+        const synth = document.getElementById('synth');
+        
+        synth.addEventListener('dblclick', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        }, { passive: false });
 
-    // Защита от drag-and-drop при микро-смещениях мыши
-    synth.addEventListener('dragstart', (e) => e.preventDefault());
+        synth.addEventListener('dragstart', (e) => e.preventDefault());
+        
         synth.addEventListener('pointerdown', (e) => {
             e.preventDefault();
             this.audioCtx.resume();
-            
             const pointerId = 'pointer_' + e.pointerId;
             this.startVoice(pointerId, e.clientX, e.clientY);
             this.createTouchPoint(e.clientX, e.clientY, pointerId);
@@ -508,7 +528,6 @@ class FixedFormulaSynth {
         }
         
         const effectiveValue = morphValue * this.modDepth;
-        
         let waveType;
         if (effectiveValue < 0.25) {
             waveType = 'square';
@@ -519,121 +538,99 @@ class FixedFormulaSynth {
         } else {
             waveType = 'sawtooth';
         }
-        
         return { waveType, effectiveValue };
     }
     
     startVoice(id, x, y) {
-    // Если для этого id уже есть голос — мгновенно убиваем его узлы синхронно (без setTimeout-задержек)
-    if (this.voices.has(id)) {
-        this.forceKillVoice(id);
+        if (this.voices.has(id)) {
+            this.forceKillVoice(id);
+        }
+        
+        const normalizedX = x / window.innerWidth;
+        const normalizedY = 1 - (y / window.innerHeight);
+        
+        try {
+            const baseFreq = this.calculateXFormula(normalizedX, normalizedY);
+            const morphValue = this.calculateYFormula(normalizedY, normalizedX, baseFreq);
+            const effectiveMorph = this.applyFormulaToWaveMorph(morphValue);
+            
+            const oscillator = this.audioCtx.createOscillator();
+            oscillator.type = (this.waveMode === 'fixed') ? this.selectedWaveType : effectiveMorph.waveType;
+            oscillator.frequency.value = baseFreq;
+            
+            const modulator = this.audioCtx.createOscillator();
+            modulator.type = 'sine';
+            modulator.frequency.value = baseFreq * (1 + morphValue * 0.5);
+            
+            const modGain = this.audioCtx.createGain();
+            modGain.gain.value = Math.max(0, morphValue * 0.5 * this.modDepth);
+            
+            const filter = this.audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 200 + Math.abs(morphValue) * 10000 * this.modDepth;
+            filter.Q.value = 1 + Math.abs(morphValue) * 15;
+            
+            const gainNode = this.audioCtx.createGain();
+            gainNode.gain.setValueAtTime(0, this.audioCtx.currentTime);
+            gainNode.gain.linearRampToValueAtTime(1, this.audioCtx.currentTime + 0.02);
+            
+            oscillator.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(this.masterGain);
+            
+            modulator.connect(modGain);
+            modGain.connect(oscillator.detune);
+            
+            oscillator.start();
+            modulator.start();
+            
+            this.voices.set(id, {
+                oscillator, modulator, modGain, filter, gain: gainNode,
+                x, y, normalizedX, normalizedY, baseFreq, morphValue,
+                waveType: effectiveMorph.waveType,
+                stopTimeouts: []
+            });
+            
+            this.updateDisplayForCurrentVoice();
+            
+        } catch (error) {
+            console.error(`Voice Error: ${error.message}`);
+        }
     }
-    
-    const normalizedX = x / window.innerWidth;
-    const normalizedY = 1 - (y / window.innerHeight);
-    
-    try {
-        const baseFreq = this.calculateXFormula(normalizedX, normalizedY);
-        const morphValue = this.calculateYFormula(normalizedY, normalizedX, baseFreq);
-        
-        const effectiveMorph = this.applyFormulaToWaveMorph(morphValue);
-        
-        const oscillator = this.audioCtx.createOscillator();
-        oscillator.type = (this.waveMode === 'fixed') ? this.selectedWaveType : effectiveMorph.waveType;
-        oscillator.frequency.value = baseFreq;
-        
-        const modulator = this.audioCtx.createOscillator();
-        modulator.type = 'sine';
-        modulator.frequency.value = baseFreq * (1 + morphValue * 0.5);
-        
-        const modGain = this.audioCtx.createGain();
-        modGain.gain.value = Math.max(0, morphValue * 0.5 * this.modDepth);
-        
-        const filter = this.audioCtx.createBiquadFilter();
-        filter.type = 'lowpass';
-        filter.frequency.value = 200 + Math.abs(morphValue) * 10000 * this.modDepth;
-        filter.Q.value = 1 + Math.abs(morphValue) * 15;
-        
-        const gainNode = this.audioCtx.createGain();
-        gainNode.gain.setValueAtTime(0, this.audioCtx.currentTime);
-        gainNode.gain.linearRampToValueAtTime(1, this.audioCtx.currentTime + 0.02);
-        
-        oscillator.connect(filter);
-        filter.connect(gainNode);
-        gainNode.connect(this.masterGain);
-        
-        modulator.connect(modGain);
-        modGain.connect(oscillator.detune);
-        
-        oscillator.start();
-        modulator.start();
-        
-        // Сохраняем id таймеров, чтобы можно было их отменить при forceKill
-        this.voices.set(id, {
-            oscillator, modulator, modGain, filter, gain: gainNode,
-            x, y, normalizedX, normalizedY, baseFreq, morphValue,
-            waveType: effectiveMorph.waveType,
-            stopTimeouts: []
-        });
-        
-        this.updateDisplayForCurrentVoice();
-        
-    } catch (error) {
-        console.error(`Voice Error: ${error.message}`);
-    }
-}
 
-// Новый метод: немедленное синхронное уничтожение голоса без fade-out, отменяя все висящие таймеры
-forceKillVoice(id) {
-    const voice = this.voices.get(id);
-    if (!voice) return;
-    
-    // Отменяем все запланированные setTimeout от предыдущего stopVoice
-    if (voice.stopTimeouts) {
-        voice.stopTimeouts.forEach(t => clearTimeout(t));
+    forceKillVoice(id) {
+        const voice = this.voices.get(id);
+        if (!voice) return;
+        if (voice.stopTimeouts) {
+            voice.stopTimeouts.forEach(t => clearTimeout(t));
+        }
+        try {
+            voice.gain.gain.cancelScheduledValues(this.audioCtx.currentTime);
+            voice.gain.gain.setValueAtTime(0, this.audioCtx.currentTime);
+            voice.oscillator.stop();
+            voice.modulator.stop();
+            voice.oscillator.disconnect();
+            voice.modulator.disconnect();
+            voice.modGain.disconnect();
+            voice.filter.disconnect();
+            voice.gain.disconnect();
+        } catch (e) {}
+        this.voices.delete(id);
     }
     
-    try {
-        voice.gain.gain.cancelScheduledValues(this.audioCtx.currentTime);
-        voice.gain.gain.setValueAtTime(0, this.audioCtx.currentTime);
-        voice.oscillator.stop();
-        voice.modulator.stop();
-        voice.oscillator.disconnect();
-        voice.modulator.disconnect();
-        voice.modGain.disconnect();
-        voice.filter.disconnect();
-        voice.gain.disconnect();
-    } catch (e) {
-        // узел уже остановлен/отключен — игнорируем
-    }
-    
-    this.voices.delete(id);
-}
-    
-    // ... остальные методы без изменений
     calculateXFormula(normalizedX, normalizedY) {
         const t = (this.audioCtx.currentTime - this.startTime);
         const r = Math.random();
-        
         return this.evaluateFormula(this.xFormula, {
-            x: normalizedX,
-            y: normalizedY,
-            t: t,
-            r: r,
-            freq: 440
+            x: normalizedX, y: normalizedY, t: t, r: r, freq: 440
         });
     }
     
     calculateYFormula(normalizedY, normalizedX, currentFreq) {
         const t = (this.audioCtx.currentTime - this.startTime);
         const r = Math.random();
-        
         return this.evaluateFormula(this.yFormula, {
-            y: normalizedY,
-            x: normalizedX,
-            t: t,
-            r: r,
-            freq: currentFreq
+            y: normalizedY, x: normalizedX, t: t, r: r, freq: currentFreq
         });
     }
     
@@ -647,7 +644,6 @@ forceKillVoice(id) {
         try {
             const baseFreq = this.calculateXFormula(normalizedX, normalizedY);
             const morphValue = this.calculateYFormula(normalizedY, normalizedX, baseFreq);
-            
             const effectiveMorph = this.applyFormulaToWaveMorph(morphValue);
             
             if (this.waveMode === 'fixed') {
@@ -659,35 +655,16 @@ forceKillVoice(id) {
             }
             
             voice.oscillator.frequency.setTargetAtTime(baseFreq, this.audioCtx.currentTime, 0.02);
+            voice.modulator.frequency.setTargetAtTime(baseFreq * (1 + morphValue * 0.5), this.audioCtx.currentTime, 0.02);
+            voice.modGain.gain.setTargetAtTime(Math.max(0, morphValue * 0.5 * this.modDepth), this.audioCtx.currentTime, 0.02);
+            voice.filter.frequency.setTargetAtTime(200 + Math.abs(morphValue) * 10000 * this.modDepth, this.audioCtx.currentTime, 0.02);
             
-            voice.modulator.frequency.setTargetAtTime(
-                baseFreq * (1 + morphValue * 0.5), 
-                this.audioCtx.currentTime, 
-                0.02
-            );
-            
-            voice.modGain.gain.setTargetAtTime(
-                Math.max(0, morphValue * 0.5 * this.modDepth), 
-                this.audioCtx.currentTime, 
-                0.02
-            );
-            
-            voice.filter.frequency.setTargetAtTime(
-                200 + Math.abs(morphValue) * 10000 * this.modDepth, 
-                this.audioCtx.currentTime, 
-                0.02
-            );
-            
-            voice.x = x;
-            voice.y = y;
-            voice.normalizedX = normalizedX;
-            voice.normalizedY = normalizedY;
-            voice.baseFreq = baseFreq;
-            voice.morphValue = morphValue;
+            voice.x = x; voice.y = y;
+            voice.normalizedX = normalizedX; voice.normalizedY = normalizedY;
+            voice.baseFreq = baseFreq; voice.morphValue = morphValue;
             voice.waveType = effectiveMorph.waveType;
             
             this.updateDisplayForCurrentVoice();
-            
         } catch (error) {
             console.error(`Update Error: ${error.message}`);
         }
@@ -722,42 +699,40 @@ forceKillVoice(id) {
         }
     }
     
-stopVoice(id) {
-    const voice = this.voices.get(id);
-    if (!voice) return;
-    
-    try {
-        voice.gain.gain.cancelScheduledValues(this.audioCtx.currentTime);
-        voice.gain.gain.setValueAtTime(voice.gain.gain.value, this.audioCtx.currentTime);
-        voice.gain.gain.linearRampToValueAtTime(0, this.audioCtx.currentTime + 0.1);
+    stopVoice(id) {
+        const voice = this.voices.get(id);
+        if (!voice) return;
         
-        const t1 = setTimeout(() => {
-            // Проверяем, что это всё ещё тот же голос (не пересоздан)
-            if (this.voices.get(id) !== voice) return;
-            try {
-                voice.oscillator.stop(this.audioCtx.currentTime + 0.05);
-                voice.modulator.stop(this.audioCtx.currentTime + 0.05);
-            } catch (e) {}
+        try {
+            voice.gain.gain.cancelScheduledValues(this.audioCtx.currentTime);
+            voice.gain.gain.setValueAtTime(voice.gain.gain.value, this.audioCtx.currentTime);
+            voice.gain.gain.linearRampToValueAtTime(0, this.audioCtx.currentTime + 0.1);
             
-            const t2 = setTimeout(() => {
+            const t1 = setTimeout(() => {
                 if (this.voices.get(id) !== voice) return;
                 try {
-                    voice.oscillator.disconnect();
-                    voice.modulator.disconnect();
-                    voice.modGain.disconnect();
-                    voice.filter.disconnect();
-                    voice.gain.disconnect();
+                    voice.oscillator.stop(this.audioCtx.currentTime + 0.05);
+                    voice.modulator.stop(this.audioCtx.currentTime + 0.05);
                 } catch (e) {}
-                this.voices.delete(id);
+                
+                const t2 = setTimeout(() => {
+                    if (this.voices.get(id) !== voice) return;
+                    try {
+                        voice.oscillator.disconnect();
+                        voice.modulator.disconnect();
+                        voice.modGain.disconnect();
+                        voice.filter.disconnect();
+                        voice.gain.disconnect();
+                    } catch (e) {}
+                    this.voices.delete(id);
+                }, 100);
+                voice.stopTimeouts.push(t2);
             }, 100);
-            voice.stopTimeouts.push(t2);
-        }, 100);
-        voice.stopTimeouts.push(t1);
-        
-    } catch (e) {
-        this.voices.delete(id);
+            voice.stopTimeouts.push(t1);
+        } catch (e) {
+            this.voices.delete(id);
+        }
     }
-}
     
     createTouchPoint(x, y, id) {
         const point = document.createElement('div');
@@ -779,7 +754,6 @@ stopVoice(id) {
         if (point) {
             point.style.left = x + 'px';
             point.style.top = y + 'px';
-            
             const hue = (x / window.innerWidth) * 360;
             const saturation = 30 + (y / window.innerHeight) * 70;
             point.style.backgroundColor = `hsla(${hue}, ${saturation}%, 60%, 0.7)`;
@@ -794,7 +768,6 @@ stopVoice(id) {
     }
 }
 
-// Пресеты и loadPreset функция остаются такими же
 const presets = {
     basic: { x: '80 + x * 1000', y: 'y' },
     lama: { x: '8+8*exp(x*8)', y: 'y+y*exp(y*4)*(y*8)*(freq/4000)' },
@@ -804,8 +777,8 @@ const presets = {
     filter: { x: '80 + x * 1200', y: 'y * y * 3 - 1.5' },
     detune: { x: '100 + x * 600', y: '(y - 0.5) * 4' },
     mad: { x: '50+exp(x*9)', y: 'y+y*exp(y*+4)*(sin(t*20)*7*y)' },
-  ultra: { x: '8+8*exp(x*8)', y: 'y+y*exp(y*8)*y' },
-  extra: { x: '10*(x*555)', y: 'log(y)' },
+    ultra: { x: '8+8*exp(x*8)', y: 'y+y*exp(y*8)*y' },
+    extra: { x: '10*(x*555)', y: 'log(y)' },
 };
 
 function loadPreset(presetName) {
@@ -824,4 +797,4 @@ window.addEventListener('load', () => {
 });
 </script>
 </body>
-</html 
+</html>
