@@ -42,7 +42,6 @@ html, body {
     border-radius: 50%;
     background: #0f0;
     cursor: pointer;
-    /*border: 1px solid #0f0;*/
     box-shadow: 0 0 5px #0f0;
 }
 
@@ -63,7 +62,7 @@ html, body {
     cursor: pointer;
     width: 45px;
     height: 45px;
-    margin: 8px;
+    margin: 5px;
 }
 .panel-collapsed .formula-group,
 .panel-collapsed .control-group,
@@ -100,26 +99,26 @@ html, body {
     border: 1px solid #333;
     z-index: 1000;
     width: 320px;
-    max-height: 90vh;
+    max-height: 95vh;
     overflow-y: auto;
 }
 
 .formula-group {
-    margin: 5px 0;
+    margin: 8px 0;
 }
 
 .formula-label {
     display: block;
     margin-top: 0px;
-    margin-bottom: 8px;
-    font-size: 14px;
+    margin-bottom: 1px;
+    font-size: 13px;
     color: #0f0;
     font-weight: bold;
 }
 
 .formula-input {
     width: 95%;
-    height: 50px;
+    height: 45px;
     background: #111;
     color: #0f0;
     border: 1px solid #0a0;
@@ -140,7 +139,7 @@ html, body {
     font-size: 11px;
     color: #888;
     margin-top: 2px;
-    line-height: 0.3;
+    line-height: 1.1;
 }
 
 .buttons {
@@ -179,17 +178,17 @@ html, body {
 .value-display {
     font-size: 11px;
     color: #0f0;
-    margin-top: 5px;
+    margin-top: 3px;
 }
 #ultra-btn {
     background-color: #212;
     color: #8f0;
     font-weight: bold;
-    transition:ease 0.84s;
+    transition: ease 0.84s;
 }
-#ultra-btn:hover{
-  background: #ff0;
-  color: #000;
+#ultra-btn:hover {
+    background: #ff0;
+    color: #000;
 }
 
 #fullscreen-btn {
@@ -203,9 +202,6 @@ html, body {
     height: 45px;
     margin: 0px;
 }
-#fullscreen-btn:hover {
-    background: #040;
-}
 
 #wave-type-select {
     width: 30%;
@@ -216,8 +212,8 @@ html, body {
     padding: 4px;
     font-family: 'Courier New', monospace;
     font-size: 12px;
+    margin-bottom: 0px;
 }
-
 
 #oscilloscope {
     width: 100%;
@@ -256,18 +252,26 @@ html, body {
         <label class="formula-label">FREQUENCY (X-axis):</label>
         <textarea class="formula-input" id="x-formula" spellcheck="false">80 + x * 1000</textarea>
         <div class="info-text">x(0-1), t(time), r(random), y</div>
-        <div class="value-display">Position: <span id="x-value">0.5</span> | Frequency: <span id="x-result-value">580</span> Hz</div>
+        <div class="value-display">Pos X: <span id="x-value">0.5</span> | Freq: <span id="x-result-value">580</span> Hz</div>
     </div>
     
     <div class="formula-group">
-        <label class="formula-label">WAVE MORPH (Y-axis):</label>
-        <textarea class="formula-input" id="y-formula" spellcheck="false">y</textarea>
+        <label class="formula-label">FM MODULATION (Y-axis):</label>
+        <textarea class="formula-input" id="fm-formula" spellcheck="false">y</textarea>
         <div class="info-text">y(0-1), x, t, r, freq</div>
-        <div class="value-display" style="font-size: 10px;">
-            Result: <span id="y-value">0.5</span> | 
-            Wave: <span id="wave-type">sawtooth</span> | 
-            <span id="y-freq-value">Mod:880Hz Detune:50ct Filter:8200Hz</span>
-        </div>
+        <div class="value-display">FM Res: <span id="fm-value">0.5</span> | Wave: <span id="wave-type">square</span></div>
+    </div>
+
+    <div class="formula-group">
+        <label class="formula-label">LOWPASS FILTER (Y-axis):</label>
+        <textarea class="formula-input" id="lp-formula" spellcheck="false">y</textarea>
+        <div class="info-text">y(0-1), x, t, r, freq</div>
+        <div class="value-display"><span id="lp-status">Filter: Warm</span></div>
+    </div>
+
+    <div class="control-group">
+        <label class="control-label">Base Bloom (Inertia): <span id="bloom-value">1.0</span></label>
+        <input type="range" id="base-bloom" class="slider" min="0" max="1" step="0.1" value="1.0">
     </div>
 
     <div class="control-group">
@@ -329,9 +333,11 @@ class FixedFormulaSynth {
         
         this.startTime = this.audioCtx.currentTime;
         this.modDepth = 1.0;
+        this.bloomFactor = 1.0; // По умолчанию выставлено на 1.0 для сохранения "грязного" эффекта памяти
         
-        this.xFormula = '55 + exp(x*8)'; //start value x
-        this.yFormula = 'exp(y*2)*sin(y*2)'; //start value y
+        this.xFormula = '55 + exp(x*8)';
+        this.fmFormula = 'exp(y*2)*sin(y*2)';
+        this.lpFormula = 'exp(y*2)*sin(y*2)';
         
         this.waveMode = 'fixed';
         this.selectedWaveType = 'square';
@@ -399,12 +405,17 @@ class FixedFormulaSynth {
 
     setupControls() {
         const xInput = document.getElementById('x-formula');
-        const yInput = document.getElementById('y-formula');
+        const fmInput = document.getElementById('fm-formula');
+        const lpInput = document.getElementById('lp-formula');
         const depthSlider = document.getElementById('mod-depth');
         const depthValue = document.getElementById('depth-value');
+        const bloomSlider = document.getElementById('base-bloom');
+        const bloomValue = document.getElementById('bloom-value');
         
         xInput.value = this.xFormula;
-        yInput.value = this.yFormula;
+        fmInput.value = this.fmFormula;
+        lpInput.value = this.lpFormula;
+        bloomValue.textContent = this.bloomFactor.toFixed(1);
         
         xInput.addEventListener('input', (e) => {
             this.xFormula = e.target.value;
@@ -413,6 +424,20 @@ class FixedFormulaSynth {
             }
         });
         
+        fmInput.addEventListener('input', (e) => {
+            this.fmFormula = e.target.value;
+            if (this.testFormula(this.fmFormula, 'fm')) {
+                this.updateAllVoices();
+            }
+        });
+
+        lpInput.addEventListener('input', (e) => {
+            this.lpFormula = e.target.value;
+            if (this.testFormula(this.lpFormula, 'lp')) {
+                this.updateAllVoices();
+            }
+        });
+
         document.getElementById('wave-type-select').addEventListener('change', (e) => {
             this.selectedWaveType = e.target.value;
             this.waveMode = (e.target.value === 'multi') ? 'multi' : 'fixed';
@@ -421,23 +446,22 @@ class FixedFormulaSynth {
                 if (this.waveMode === 'fixed') {
                     voice.oscillator.type = this.selectedWaveType;
                 } else {
-                    const effectiveMorph = this.applyFormulaToWaveMorph(voice.morphValue);
+                    const effectiveMorph = this.applyFormulaToWaveMorph(voice.fmValue);
                     voice.oscillator.type = effectiveMorph.waveType;
                 }
             }
             this.updateDisplayForCurrentVoice();
         });
         
-        yInput.addEventListener('input', (e) => {
-            this.yFormula = e.target.value;
-            if (this.testFormula(this.yFormula, 'y')) {
-                this.updateAllVoices();
-            }
-        });
-        
         depthSlider.addEventListener('input', (e) => {
             this.modDepth = parseFloat(e.target.value);
             depthValue.textContent = this.modDepth.toFixed(1);
+            this.updateAllVoices();
+        });
+
+        bloomSlider.addEventListener('input', (e) => {
+            this.bloomFactor = parseFloat(e.target.value);
+            bloomValue.textContent = this.bloomFactor.toFixed(1);
             this.updateAllVoices();
         });
         
@@ -448,7 +472,8 @@ class FixedFormulaSynth {
         });
         
         this.testFormula(this.xFormula, 'x');
-        this.testFormula(this.yFormula, 'y');
+        this.testFormula(this.fmFormula, 'fm');
+        this.testFormula(this.lpFormula, 'lp');
     }
     
     testFormula(formula, type) {
@@ -522,12 +547,12 @@ class FixedFormulaSynth {
         });
     }
     
-    applyFormulaToWaveMorph(morphValue) {
+    applyFormulaToWaveMorph(fmValue) {
         if (this.waveMode === 'fixed') {
             return { waveType: this.selectedWaveType, effectiveValue: 0 };
         }
         
-        const effectiveValue = morphValue * this.modDepth;
+        const effectiveValue = fmValue * this.modDepth;
         let waveType;
         if (effectiveValue < 0.25) {
             waveType = 'square';
@@ -551,8 +576,9 @@ class FixedFormulaSynth {
         
         try {
             const baseFreq = this.calculateXFormula(normalizedX, normalizedY);
-            const morphValue = this.calculateYFormula(normalizedY, normalizedX, baseFreq);
-            const effectiveMorph = this.applyFormulaToWaveMorph(morphValue);
+            const fmValue = this.calculateFormulaValue(this.fmFormula, normalizedY, normalizedX, baseFreq);
+            const lpValue = this.calculateFormulaValue(this.lpFormula, normalizedY, normalizedX, baseFreq);
+            const effectiveMorph = this.applyFormulaToWaveMorph(fmValue);
             
             const oscillator = this.audioCtx.createOscillator();
             oscillator.type = (this.waveMode === 'fixed') ? this.selectedWaveType : effectiveMorph.waveType;
@@ -560,15 +586,18 @@ class FixedFormulaSynth {
             
             const modulator = this.audioCtx.createOscillator();
             modulator.type = 'sine';
-            modulator.frequency.value = baseFreq * (1 + morphValue * 0.5);
+            modulator.frequency.value = baseFreq * (1 + fmValue * 0.5);
             
             const modGain = this.audioCtx.createGain();
-            modGain.gain.value = Math.max(0, morphValue * 0.5 * this.modDepth);
+            modGain.gain.value = Math.max(0, fmValue * 0.5 * this.modDepth);
             
             const filter = this.audioCtx.createBiquadFilter();
             filter.type = 'lowpass';
-            filter.frequency.value = 200 + Math.abs(morphValue) * 10000 * this.modDepth;
-            filter.Q.value = 1 + Math.abs(morphValue) * 15;
+            filter.frequency.value = 200 + Math.abs(lpValue) * 10000 * this.modDepth;
+            
+            // Запоминаем стартовый резонанс в момент первого касания
+            const initialQ = 1 + Math.abs(lpValue) * 15;
+            filter.Q.value = initialQ;
             
             const gainNode = this.audioCtx.createGain();
             gainNode.gain.setValueAtTime(0, this.audioCtx.currentTime);
@@ -586,7 +615,7 @@ class FixedFormulaSynth {
             
             this.voices.set(id, {
                 oscillator, modulator, modGain, filter, gain: gainNode,
-                x, y, normalizedX, normalizedY, baseFreq, morphValue,
+                x, y, normalizedX, normalizedY, baseFreq, fmValue, lpValue, initialQ,
                 waveType: effectiveMorph.waveType,
                 stopTimeouts: []
             });
@@ -626,10 +655,10 @@ class FixedFormulaSynth {
         });
     }
     
-    calculateYFormula(normalizedY, normalizedX, currentFreq) {
+    calculateFormulaValue(formula, normalizedY, normalizedX, currentFreq) {
         const t = (this.audioCtx.currentTime - this.startTime);
         const r = Math.random();
-        return this.evaluateFormula(this.yFormula, {
+        return this.evaluateFormula(formula, {
             y: normalizedY, x: normalizedX, t: t, r: r, freq: currentFreq
         });
     }
@@ -643,8 +672,9 @@ class FixedFormulaSynth {
         
         try {
             const baseFreq = this.calculateXFormula(normalizedX, normalizedY);
-            const morphValue = this.calculateYFormula(normalizedY, normalizedX, baseFreq);
-            const effectiveMorph = this.applyFormulaToWaveMorph(morphValue);
+            const fmValue = this.calculateFormulaValue(this.fmFormula, normalizedY, normalizedX, baseFreq);
+            const lpValue = this.calculateFormulaValue(this.lpFormula, normalizedY, normalizedX, baseFreq);
+            const effectiveMorph = this.applyFormulaToWaveMorph(fmValue);
             
             if (this.waveMode === 'fixed') {
                 voice.oscillator.type = this.selectedWaveType;
@@ -655,13 +685,18 @@ class FixedFormulaSynth {
             }
             
             voice.oscillator.frequency.setTargetAtTime(baseFreq, this.audioCtx.currentTime, 0.02);
-            voice.modulator.frequency.setTargetAtTime(baseFreq * (1 + morphValue * 0.5), this.audioCtx.currentTime, 0.02);
-            voice.modGain.gain.setTargetAtTime(Math.max(0, morphValue * 0.5 * this.modDepth), this.audioCtx.currentTime, 0.02);
-            voice.filter.frequency.setTargetAtTime(200 + Math.abs(morphValue) * 10000 * this.modDepth, this.audioCtx.currentTime, 0.02);
+            voice.modulator.frequency.setTargetAtTime(baseFreq * (1 + fmValue * 0.5), this.audioCtx.currentTime, 0.02);
+            voice.modGain.gain.setTargetAtTime(Math.max(0, fmValue * 0.5 * this.modDepth), this.audioCtx.currentTime, 0.02);
+            voice.filter.frequency.setTargetAtTime(200 + Math.abs(lpValue) * 10000 * this.modDepth, this.audioCtx.currentTime, 0.02);
+            
+            // Магия микширования: интерполируем стартовый резонанс и динамический резонанс
+            const dynamicQ = 1 + Math.abs(lpValue) * 15;
+            const blendedQ = (voice.initialQ * this.bloomFactor) + (dynamicQ * (1 - this.bloomFactor));
+            voice.filter.Q.setTargetAtTime(blendedQ, this.audioCtx.currentTime, 0.02);
             
             voice.x = x; voice.y = y;
             voice.normalizedX = normalizedX; voice.normalizedY = normalizedY;
-            voice.baseFreq = baseFreq; voice.morphValue = morphValue;
+            voice.baseFreq = baseFreq; voice.fmValue = fmValue; voice.lpValue = lpValue;
             voice.waveType = effectiveMorph.waveType;
             
             this.updateDisplayForCurrentVoice();
@@ -675,21 +710,17 @@ class FixedFormulaSynth {
         if (firstVoice) {
             document.getElementById('x-value').textContent = firstVoice.normalizedX.toFixed(2);
             document.getElementById('x-result-value').textContent = Math.round(firstVoice.baseFreq);
-            document.getElementById('y-value').textContent = firstVoice.morphValue.toFixed(2);
+            document.getElementById('fm-value').textContent = firstVoice.fmValue.toFixed(2);
             document.getElementById('wave-type').textContent = firstVoice.oscillator.type;
             
-            const fmDepthOctaves = Math.abs(firstVoice.morphValue) * 2;
-            const detuneSemitones = (firstVoice.morphValue - 0.5) * 4;
-            const filterCutoff = 80 + firstVoice.morphValue * 8000;
-            
+            const filterCutoff = 200 + Math.abs(firstVoice.lpValue) * 10000 * this.modDepth;
             let filterDescription;
-            if (filterCutoff < 500) filterDescription = "Very Dark";
-            else if (filterCutoff < 2000) filterDescription = "Warm"; 
-            else if (filterCutoff < 5000) filterDescription = "Bright";
+            if (filterCutoff < 800) filterDescription = "Very Dark";
+            else if (filterCutoff < 3000) filterDescription = "Warm"; 
+            else if (filterCutoff < 6000) filterDescription = "Bright";
             else filterDescription = "Very Bright";
             
-            document.getElementById('y-freq-value').textContent = 
-                `FM:±${fmDepthOctaves.toFixed(1)}oct | Detune:${detuneSemitones.toFixed(1)}st | Filter:${filterDescription}`;
+            document.getElementById('lp-status').textContent = `Filter: ${filterDescription} (${Math.round(filterCutoff)} Hz)`;
         }
     }
     
@@ -785,9 +816,11 @@ function loadPreset(presetName) {
     const preset = presets[presetName];
     if (preset) {
         document.getElementById('x-formula').value = preset.x;
-        document.getElementById('y-formula').value = preset.y;
+        document.getElementById('fm-formula').value = preset.y;
+        document.getElementById('lp-formula').value = preset.y;
         document.getElementById('x-formula').dispatchEvent(new Event('input'));
-        document.getElementById('y-formula').dispatchEvent(new Event('input'));
+        document.getElementById('fm-formula').dispatchEvent(new Event('input'));
+        document.getElementById('lp-formula').dispatchEvent(new Event('input'));
     }
 }
 
